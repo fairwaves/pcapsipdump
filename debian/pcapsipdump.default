@@ -1,0 +1,15 @@
+# Config file for pcapsipdump
+
+# start pcapsidump in daemon mode from init.d script?
+#  only allowed values are "true" or "false"
+#  Anything else will be handled as "false"
+PCAPSIDUMP_ENABLE=false
+
+# The Ethernet NIC that we want to listen to
+DEVICE=eth0
+
+# Place to write captired files
+SPOOLDIR=/var/spool/pcapsipdump
+
+# The number of days to retain data files for
+RETENTION=4

@@ -1,0 +1,42 @@
+#!/usr/bin/perl
+
+use File::Path "rmtree";
+use FindBin;
+use lib $FindBin::Bin;
+
+use PcapSipDumpTestLib;
+
+{
+  mkdir("/tmp/pcapsipdump-test");
+  chdir("/tmp/pcapsipdump-test");
+  my $F=pcap_create($DLT_EN10MB,"pcapsipdump-test.pcap",65535);
+  my $data="";
+  my $minimal_sip="INVITE sip:user@foo.com SIP/2.0\r
+From: <sip:user@bar.com>\r
+To: <sip:user@foo.com>\r
+Contact: <sip:user@bar.com;transport=udp>\r
+Call-ID: 12345678\r
+Content-Type: application/sdp\r
+Content-Length: ";
+  for(my $i=0;$i<=1500;$i++){
+    simple_write_packet($F,$data);
+    simple_write_packet($F,$minimal_sip.(length($data)+4)."\r\n\r\ns=".$data."\r\n");
+    $data.="x";
+  }
+  for(my $i=0;$i<43;$i++){
+    $data1.=$data;
+    simple_write_packet($F,$data);
+    simple_write_packet($F,$minimal_sip.(length($data1)+4)."\r\n\r\ns=".$data1."\r\n");
+  }
+  close($F);
+}
+
+{
+  system("$FindBin::Bin/../../pcapsipdump -r pcapsipdump-test.pcap -d .");
+  my $return=$?;
+  chdir("/tmp");
+  rmtree("/tmp/pcapsipdump-test");
+  exit $return;
+}
+
+1;
