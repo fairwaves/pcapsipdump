@@ -204,7 +204,7 @@ int main(int argc, char *argv[])
     while(1) {
         signed char c;
 
-        c = getopt (argc, argv, "i:r:d:v:m:n:R:l:B:T:t:fpU");
+        c = getopt (argc, argv, "i:r:d:v:m:n:N:R:l:B:T:t:fpU");
         if (c == -1)
             break;
 
