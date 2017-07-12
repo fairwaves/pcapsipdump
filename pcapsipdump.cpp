@@ -188,6 +188,8 @@ int main(int argc, char *argv[])
     int call_skip_cnt=1;
     int opt_pcap_buffer_size=0; /* Operating system capture buffer size, a.k.a. libpcap ring buffer size */
     int opt_absolute_timeout = INT32_MAX;
+    in_addr_t opt_nat_to_addr = INADDR_NONE;
+    bool opt_do_nat_to = false;
     bool number_filter_matched=false;
     regex_t number_filter, method_filter;
     regmatch_t pmatch[1];
@@ -275,6 +277,10 @@ int main(int argc, char *argv[])
             case 't':
                 trigger.add(optarg);
                 break;
+            case 'N':
+                opt_do_nat_to = true;
+                opt_nat_to_addr = inet_addr(optarg);
+                break;
         }
     }
 
@@ -289,7 +295,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    if ((fname==NULL)&&(ifname==NULL)){
+    if (((fname==NULL)&&(ifname==NULL)) || (opt_do_nat_to && (opt_nat_to_addr == INADDR_NONE))){
 	printf( "pcapsipdump version %s\n"
 		"Usage: pcapsipdump [-fpUt] [-i <interface> | -r <file>] [-d <working directory>]\n"
                 "                   [-v level] [-R filter] [-m filter] [-n filter] [-l filter]\n"
@@ -320,6 +326,7 @@ int main(int argc, char *argv[])
                 "      mv:<directory> - move .pcap files to <directory> (using /bin/mv)\n"
                 "      exec:\"/bin/blah args...\" - fork and execute /bin/blah with arguments\n"
                 "      sh:\"shell code\" - fork and execute /bin/sh -c \"shell code\"\n"
+        " -N   <ip-addr> Assume the RTP receiver is at this IP instead of at what's in c= in the sdp.\n"
                 " *    Following %%-codes are expanded in -d and -t: %%f (from/caller), %%t (to/callee),\n"
                 "      %%i (call-id), and call date/time (see 'man 3 strftime' for details)\n"
                 " *    Trailing argument is pcap filter expression syntax, see 'man 7 pcap-filter'\n"
@@ -333,6 +340,7 @@ int main(int argc, char *argv[])
     if (opt_t38only){
         ct->erase_non_t38=1;
     }
+
     signal(SIGINT,sigint_handler);
     signal(SIGTERM,sigterm_handler);
 
@@ -506,35 +514,32 @@ int main(int argc, char *argv[])
                 }else{
                     save_this_rtp_packet=0;
                 }
-
-                if (save_this_rtp_packet &&
-                        ct->find_ip_port_ssrc(
-                            hdaddr(header_ip),htons(header_udp->dest) & rtp_port_mask,
-                            get_ssrc(data,is_rtcp),
-                            &ce, &idx_rtp)){
-                    if (ce->f_pcap != NULL &&
-                        (opt_rtpsave != RTPSAVE_RTPEVENT ||
-                         data[1] == ce->rtpmap_event)) {
+                if (save_this_rtp_packet
+                    && (    ct->find_ip_port_ssrc(
+                                hdaddr(header_ip),htons(header_udp->dest) & rtp_port_mask,
+                                get_ssrc(data,is_rtcp),
+                                &ce, &idx_rtp)
+                         || ct->find_ip_port_ssrc(
+                                hdaddr(header_ip),htons(header_udp->source) & rtp_port_mask,
+                                get_ssrc(data,is_rtcp),
+                                &ce, &idx_rtp)
+                         || ( opt_do_nat_to && ct->find_ip_port_ssrc(
+                                opt_nat_to_addr,htons(header_udp->dest) & rtp_port_mask,
+                                get_ssrc(data,is_rtcp),
+                                &ce, &idx_rtp))
+                         || ( opt_do_nat_to && ct->find_ip_port_ssrc(
+                                opt_nat_to_addr,htons(header_udp->source) & rtp_port_mask,
+                                get_ssrc(data,is_rtcp),
+                                &ce, &idx_rtp))
+                       )) {
+                    if (ce->f_pcap != NULL && (opt_rtpsave != RTPSAVE_RTPEVENT || data[1] == ce->rtpmap_event)) {
                         ce->last_packet_time=pkt_header->ts.tv_sec;
                         pcap_dump((u_char *)ce->f_pcap, pkt_header, pkt_data);
                         if (opt_packetbuffered) {
                             pcap_dump_flush(ce->f_pcap);
                         }
                     }
-                }else if (save_this_rtp_packet &&
-                        ct->find_ip_port_ssrc(
-                            hsaddr(header_ip),htons(header_udp->source) & rtp_port_mask,
-                            get_ssrc(data,is_rtcp),
-                            &ce, &idx_rtp)){
-                    if (ce->f_pcap != NULL &&
-                        (opt_rtpsave != RTPSAVE_RTPEVENT || data[1] == ce->rtpmap_event)) {
-                        ce->last_packet_time=pkt_header->ts.tv_sec;
-                        pcap_dump((u_char *)ce->f_pcap, pkt_header, pkt_data);
-                        if (opt_packetbuffered) {
-                            pcap_dump_flush(ce->f_pcap);
-                        }
-                    }
-                }else if (get_method(data, sip_method, sizeof(sip_method)) ||
+                } else if (get_method(data, sip_method, sizeof(sip_method)) ||
                           memcmp(data, "SIP/2.0 ", sizeof("SIP/2.0 "))) {
                     char caller[256] = "";
                     char called[256] = "";
