@@ -1,3 +1,9 @@
+pcapsipdump (0.2-1+fw2) trusty; urgency=medium
+
+  * Fix pcapsipdump capturing error on a tun/tap interfaces.
+
+ -- Rauf Gyulaliev <rauf.gyulaliev@fairwaves.co>  Mon, 21 Aug 2017 17:12:51 +0300
+
 pcapsipdump (0.2-1+fw1) UNRELEASED; urgency=low
 
   * Capturing natted RTP traffic
