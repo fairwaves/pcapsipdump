@@ -171,9 +171,9 @@ int main(int argc, char *argv[])
     char errbuf[PCAP_ERRBUF_SIZE];/* Error string */
     struct bpf_program fp;/* The compiled filter */
 #ifdef USE_TCP
-    char filter_exp[MAX_PCAP_FILTER_EXPRESSION] = "udp or tcp or vlan";/* The filter expression */
+    char filter_exp[MAX_PCAP_FILTER_EXPRESSION] = "udp or tcp";/* The filter expression */
 #else
-    char filter_exp[MAX_PCAP_FILTER_EXPRESSION] = "udp or vlan";/* The filter expression */
+    char filter_exp[MAX_PCAP_FILTER_EXPRESSION] = "udp";/* The filter expression */
 #endif
     struct pcap_pkthdr *pkt_header; /* The header that pcap gives us */
     const u_char *pkt_data; /* The actual packet */
